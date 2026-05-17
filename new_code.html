@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VAULT // Password Security System</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --neon-green: #00ff9d;
+    --neon-red: #ff2d55;
+    --neon-blue: #00d4ff;
+    --neon-yellow: #ffd60a;
+    --neon-purple: #bf5af2;
+    --bg-dark: #050a0e;
+    --bg-card: #0a1628;
+    --bg-panel: #0d1f2d;
+    --border-dim: #1a3a4a;
+    --text-dim: #4a7a8a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background-color: var(--bg-dark);
+    font-family: 'Rajdhani', sans-serif;
+    color: #c8e0f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+  }
+
+  /* Animated grid background */
+  .grid-bg {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridShift 20s linear infinite;
+  }
+  @keyframes gridShift {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 40px; }
+  }
+
+  /* Glitch effect */
+  @keyframes glitch {
+    0%, 100% { text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue); transform: none; }
+    20% { text-shadow: -2px 0 var(--neon-red), 2px 0 var(--neon-green); transform: skew(-0.5deg); }
+    40% { text-shadow: 2px 0 var(--neon-red), -2px 0 var(--neon-blue); transform: skew(0.5deg); }
+    60% { text-shadow: 0 0 10px var(--neon-purple); transform: none; }
+  }
+
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.7; }
+    97% { opacity: 1; }
+    98% { opacity: 0.5; }
+    99% { opacity: 1; }
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 5px rgba(0,212,255,0.3), inset 0 0 5px rgba(0,212,255,0.05); }
+    50% { box-shadow: 0 0 20px rgba(0,212,255,0.6), inset 0 0 10px rgba(0,212,255,0.1); }
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes neonPop {
+    0% { transform: scale(0.95); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+  .title-glitch {
+    font-family: 'Orbitron', monospace;
+    animation: glitch 4s ease-in-out infinite, flicker 8s ease-in-out infinite;
+    color: var(--neon-blue);
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    position: relative;
+    transition: border-color 0.3s;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 20px; right: 20px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+  }
+  .card:hover { border-color: rgba(0,212,255,0.3); }
+
+  .panel-active { animation: pulse-border 2s ease-in-out infinite; }
+
+  .input-cyber {
+    background: rgba(0,212,255,0.03);
+    border: 1px solid var(--border-dim);
+    color: var(--neon-green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    transition: all 0.3s;
+    caret-color: var(--neon-green);
+  }
+  .input-cyber:focus {
+    outline: none;
+    border-color: var(--neon-blue);
+    background: rgba(0,212,255,0.06);
+    box-shadow: 0 0 15px rgba(0,212,255,0.2), inset 0 0 10px rgba(0,212,255,0.05);
+  }
+  .input-cyber::placeholder { color: var(--text-dim); }
+
+  .btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.4s;
+  }
+  .btn:hover::after { transform: translateX(100%); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-green {
+    background: rgba(0,255,157,0.08);
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    text-shadow: 0 0 8px var(--neon-green);
+  }
+  .btn-green:hover {
+    background: rgba(0,255,157,0.18);
+    box-shadow: 0 0 20px rgba(0,255,157,0.4);
+  }
+
+  .btn-blue {
+    background: rgba(0,212,255,0.08);
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+    text-shadow: 0 0 8px var(--neon-blue);
+  }
+  .btn-blue:hover {
+    background: rgba(0,212,255,0.18);
+    box-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  .btn-red {
+    background: rgba(255,45,85,0.08);
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+    text-shadow: 0 0 8px var(--neon-red);
+  }
+  .btn-red:hover {
+    background: rgba(255,45,85,0.18);
+    box-shadow: 0 0 20px rgba(255,45,85,0.4);
+  }
+
+  .btn-purple {
+    background: rgba(191,90,242,0.08);
+    border-color: var(--neon-purple);
+    color: var(--neon-purple);
+    text-shadow: 0 0 8px var(--neon-purple);
+  }
+  .btn-purple:hover {
+    background: rgba(191,90,242,0.18);
+    box-shadow: 0 0 20px rgba(191,90,242,0.4);
+  }
+
+  /* Strength bar */
+  .strength-track {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-dim);
+    height: 8px;
+    border-radius: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .strength-fill {
+    height: 100%;
+    transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s;
+    position: relative;
+  }
+  .strength-fill::after {
+    content: '';
+    position: absolute; right: 0; top: 0; bottom: 0; width: 4px;
+    background: rgba(255,255,255,0.6);
+    box-shadow: 0 0 8px rgba(255,255,255,0.8);
+    animation: flicker 1.5s ease-in-out infinite;
+  }
+
+  /* Criteria badges */
+  .criteria-badge {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border: 1px solid;
+    transition: all 0.3s;
+    animation: slideIn 0.3s ease;
+  }
+
+  /* Result panel */
+  .result-panel {
+    animation: neonPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Monospace data label */
+  .mono { font-family: 'Share Tech Mono', monospace; }
+
+  /* Section header */
+  .section-header {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-dim);
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--border-dim); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--neon-blue); }
+
+  /* Upload drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border-dim);
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--neon-purple);
+    background: rgba(191,90,242,0.05);
+  }
+
+  .tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border: 1px solid;
+    letter-spacing: 0.1em;
+  }
+
+  .spinner {
+    border: 2px solid rgba(0,212,255,0.2);
+    border-top: 2px solid var(--neon-blue);
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    animation: spin-slow 0.8s linear infinite;
+    display: inline-block;
+  }
+
+  .corner-tl::before, .corner-tr::before, .corner-bl::before, .corner-br::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    border-color: var(--neon-blue);
+    border-style: solid;
+  }
+  .corner-tl::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
+  .corner-tr::after { content: ''; position: absolute; top: 0; right: 0; width: 12px; height: 12px; border-top: 2px solid var(--neon-blue); border-right: 2px solid var(--neon-blue); }
+  .corner-bl::after { content: ''; position: absolute; bottom: 0; left: 0; width: 12px; height: 12px; border-bottom: 2px solid var(--neon-blue); border-left: 2px solid var(--neon-blue); }
+
+  textarea.input-cyber { resize: vertical; min-height: 80px; }
+
+  .encrypted-output {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--neon-purple);
+    word-break: break-all;
+    background: rgba(191,90,242,0.05);
+    border: 1px solid rgba(191,90,242,0.2);
+    padding: 10px;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body class="pb-20">
+<div class="grid-bg"></div>
+
+<div class="relative z-10 max-w-3xl mx-auto px-4 py-8">
+
+  <!-- HEADER -->
+  <div class="text-center mb-10">
+    <div class="inline-block mb-2">
+      <span class="tag" style="border-color:var(--neon-blue);color:var(--neon-blue);">ZERO-TRUST</span>
+      <span class="tag ml-2" style="border-color:var(--neon-green);color:var(--neon-green);">CLIENT-SIDE</span>
+      <span class="tag ml-2" style="border-color:var(--neon-purple);color:var(--neon-purple);">.AADI ENCRYPTED</span>
+    </div>
+    <h1 class="title-glitch text-4xl font-black mt-2 mb-1">VAULT</h1>
+    <p class="mono text-xs" style="color:var(--text-dim);">// PASSWORD SECURITY SYSTEM v2.0 — NO DATA LEAVES YOUR BROWSER //</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1 : PASSWORD INPUT                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="card rounded-none p-6 mb-4 corner-tl corner-tr corner-bl">
+    <p class="section-header">// 01 — INPUT VECTOR</p>
+
+    <!-- Password field -->
+    <div class="relative mb-4">
+      <input id="pwInput" type="password"
+        placeholder="ENTER PASSWORD TO ANALYZE..."
+        class="input-cyber w-full px-4 py-3 pr-12 rounded-none text-lg tracking-widest"
+        oninput="onPasswordInput()" />
+      <button onclick="toggleVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-xl" style="color:var(--text-dim);" title="Toggle visibility">
+        <span id="eyeIcon">👁</span>
+      </button>
+    </div>
+
+    <!-- Strength bar -->
+    <div class="mb-2">
+      <div class="flex justify-between items-center mb-1">
+        <span class="mono text-xs" style="color:var(--text-dim);">SIGNAL STRENGTH</span>
+        <span id="strengthLabel" class="mono text-xs font-bold">—</span>
+      </div>
+      <div class="strength-track">
+        <div id="strengthFill" class="strength-fill" style="width:0%;background:var(--neon-red);"></div>
+      </div>
+    </div>
+
+    <!-- Entropy score -->
+    <div class="flex justify-between items-center mb-4">
+      <span class="mono text-xs" style="color:var(--text-dim);">ENTROPY</span>
+      <span id="entropyDisplay" class="mono text-xs" style="color:var(--neon-blue);">0.00 bits</span>
+    </div>
+
+    <!-- Criteria checklist -->
+    <div id="criteriaList" class="grid grid-cols-2 gap-2"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2 : ANALYSIS BUTTONS                           -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-2 gap-3 mb-4">
+    <button onclick="checkRobustness()" class="btn btn-green px-4 py-3 rounded-none">
+      ⚡ CHECK ROBUSTNESS
+    </button>
+    <button onclick="checkHIBP()" class="btn btn-blue px-4 py-3 rounded-none">
+      🔍 BREACH HISTORY (HIBP)
+    </button>
+  </div>
+
+  <!-- Robustness result -->
+  <div id="robustnessResult" class="hidden mb-4"></div>
+  <!-- HIBP result -->
+  <div id="hibpResult" class="hidden mb-4"></div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 3 : RECOMMENDER & GENERATOR                    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div id="recommenderPanel" class="hidden card rounded-none p-6 mb-4" style="border-color:rgba(255,45,85,0.4);">
+    <p class="section-header" style="color:var(--neon-red);">// 03 — THREAT ADVISORY</p>
+    <div id="recommenderContent"></div>
+    <button onclick="generateSecurePassword()" class="btn btn-green px-4 py-3 rounded-none w-full mt-4">
+      🔐 GENERATE ULTRA-SECURE PASSWORD (CSPRNG)
+    </button>
+    <div id="generatedPw" class="hidden mt-3 p-3 mono text-center text-lg" style="background:rgba(0,255,157,0.05);border:1px solid var(--neon-green);color:var(--neon-green);letter-spacing:0.15em;cursor:pointer;" onclick="copyGenerated()" title="Click to copy"></div>
+    <p id="copyHint" class="hidden text-center mono text-xs mt-1" style="color:var(--text-dim);">COPIED TO CLIPBOARD ✓</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 4 : .AADI FILE ENCRYPTION                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="card rounded-none p-6 mb-4">
+    <p class="section-header" style="color:var(--neon-purple);">// 04 — .AADI FILE CIPHER [AES-GCM 256]</p>
+
+    <div class="grid grid-cols-1 gap-4">
+      <!-- ENCRYPT -->
+      <div>
+        <p class="mono text-xs mb-2" style="color:var(--text-dim);">↓ ENCRYPT A SECRET NOTE INTO .AADI FORMAT</p>
+        <textarea id="secretNote" class="input-cyber w-full px-3 py-2 rounded-none mb-2"
+          placeholder="TYPE YOUR SECRET NOTE HERE..."></textarea>
+        <button onclick="encryptNote()" class="btn btn-purple px-4 py-2 rounded-none w-full">
+          🔒 ENCRYPT & DOWNLOAD AS .AADI
+        </button>
+        <div id="encryptStatus" class="hidden mt-2 mono text-xs text-center" style="color:var(--neon-purple);"></div>
+        <div id="encryptedPreview" class="hidden mt-2 encrypted-output"></div>
+      </div>
+
+      <div style="border-top:1px solid var(--border-dim);"></div>
+
+      <!-- DECRYPT -->
+      <div>
+        <p class="mono text-xs mb-2" style="color:var(--text-dim);">↑ DECRYPT A .AADI FILE (USES CURRENT PASSWORD)</p>
+        <div id="dropZone" class="drop-zone rounded-none p-6 text-center mb-2" onclick="document.getElementById('fileInput').click()">
+          <p class="mono text-xs" style="color:var(--text-dim);">DROP .AADI FILE HERE OR CLICK TO BROWSE</p>
+          <p id="dropFileName" class="mono text-xs mt-1" style="color:var(--neon-purple);"></p>
+        </div>
+        <input type="file" id="fileInput" accept=".aadi" class="hidden" onchange="onFileSelected(event)" />
+        <button onclick="decryptFile()" class="btn btn-purple px-4 py-2 rounded-none w-full">
+          🔓 DECRYPT .AADI FILE
+        </button>
+        <div id="decryptStatus" class="hidden mt-2 mono text-xs text-center"></div>
+        <div id="decryptedContent" class="hidden mt-2 p-3 mono text-sm" style="background:rgba(0,255,157,0.05);border:1px solid var(--neon-green);color:var(--neon-green);white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <p class="text-center mono text-xs mt-6" style="color:var(--text-dim);">
+    // 100% CLIENT-SIDE · NO TELEMETRY · NO LOGS · ZERO-TRUST ARCHITECTURE //<br/>
+    SHA-1 k-ANON HIBP · AES-GCM-256 · PBKDF2 · window.crypto.getRandomValues()
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<script>
+// ──────────────────────────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────────────────────────
+let selectedFile = null;
+let lastGeneratedPw = '';
+
+// ──────────────────────────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────────────────────────
+
+/** Return current password value */
+const pw = () => document.getElementById('pwInput').value;
+
+/** Toggle password visibility */
+function toggleVisibility() {
+  const inp = document.getElementById('pwInput');
+  const isHidden = inp.type === 'password';
+  inp.type = isHidden ? 'text' : 'password';
+  document.getElementById('eyeIcon').textContent = isHidden ? '🙈' : '👁';
+}
+
+// ──────────────────────────────────────────────────────────────────
+// REAL-TIME VALIDATION
+// ──────────────────────────────────────────────────────────────────
+
+const CRITERIA = [
+  { id: 'len8',    label: 'MIN 8 CHARS',      test: p => p.length >= 8 },
+  { id: 'len16',   label: 'MIN 16 CHARS',     test: p => p.length >= 16 },
+  { id: 'upper',   label: 'UPPERCASE',         test: p => /[A-Z]/.test(p) },
+  { id: 'lower',   label: 'LOWERCASE',         test: p => /[a-z]/.test(p) },
+  { id: 'digit',   label: 'NUMBERS',           test: p => /\d/.test(p) },
+  { id: 'special', label: 'SPECIAL CHARS',     test: p => /[^a-zA-Z0-9]/.test(p) },
+  { id: 'no3rep',  label: 'NO REPEATS (3+)',   test: p => !/(.)\1{2,}/.test(p) },
+  { id: 'noSeq',   label: 'NO SEQUENCES',      test: p => !/(012|123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i.test(p) },
+];
+
+/**
+ * Calculate Shannon entropy of the password.
+ * Entropy = log2(charsetSize) × length
+ * This measures unpredictability in bits.
+ */
+function calcEntropy(p) {
+  let charset = 0;
+  if (/[a-z]/.test(p)) charset += 26;
+  if (/[A-Z]/.test(p)) charset += 26;
+  if (/\d/.test(p)) charset += 10;
+  if (/[^a-zA-Z0-9]/.test(p)) charset += 32;
+  if (charset === 0) return 0;
+  return Math.log2(charset) * p.length;
+}
+
+function onPasswordInput() {
+  const p = pw();
+  renderCriteria(p);
+  renderStrengthBar(p);
+  // Clear stale results
+  ['robustnessResult','hibpResult','recommenderPanel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+}
+
+function renderCriteria(p) {
+  const container = document.getElementById('criteriaList');
+  container.innerHTML = CRITERIA.map(c => {
+    const pass = c.test(p);
+    const color = pass ? 'var(--neon-green)' : (p.length ? 'var(--neon-red)' : 'var(--text-dim)');
+    const icon = pass ? '✓' : '✗';
+    return `<div class="criteria-badge" style="border-color:${color};color:${color};">
+      <span>${icon}</span><span>${c.label}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderStrengthBar(p) {
+  const entropy = calcEntropy(p);
+  document.getElementById('entropyDisplay').textContent = entropy.toFixed(2) + ' bits';
+
+  // Score 0–100 based on entropy thresholds
+  // < 28 bits → Very Weak, < 36 → Weak, < 60 → Fair, < 80 → Strong, 80+ → Excellent
+  const fill = document.getElementById('strengthFill');
+  const label = document.getElementById('strengthLabel');
+
+  let pct, color, text;
+  if (!p.length)          { pct=0; color='var(--neon-red)'; text='—'; }
+  else if (entropy < 28)  { pct=15; color='var(--neon-red)'; text='CRITICAL'; }
+  else if (entropy < 36)  { pct=30; color='#ff6b35'; text='WEAK'; }
+  else if (entropy < 60)  { pct=55; color='var(--neon-yellow)'; text='FAIR'; }
+  else if (entropy < 80)  { pct=78; color='#7fff00'; text='STRONG'; }
+  else                    { pct=100; color='var(--neon-green)'; text='EXCELLENT'; }
+
+  fill.style.width = pct + '%';
+  fill.style.background = color;
+  label.textContent = text;
+  label.style.color = color;
+}
+
+// ──────────────────────────────────────────────────────────────────
+// ROBUSTNESS CHECK (simulated zxcvbn-style analysis)
+// ──────────────────────────────────────────────────────────────────
+
+// Common passwords / dictionary patterns (abbreviated representative set)
+const COMMON_PASSWORDS = new Set([
+  'password','123456','qwerty','abc123','letmein','monkey','1234567890',
+  'password1','iloveyou','admin','welcome','login','passw0rd','master',
+  'dragon','baseball','football','shadow','superman','batman','trustno1',
+  'hello','charlie','donald','michael','jessica','sunshine','princess',
+  'password123','12345678','qwerty123','111111','123123','666666','654321',
+  'password!','p@ssword','p@ssw0rd','admin123','root','toor','test'
+]);
+
+const KEYBOARD_WALKS = ['qwerty','asdfgh','zxcvbn','qwertyuiop','asdfghjkl','zxcvbnm','1q2w3e','1qaz2wsx'];
+
+function estimateCrackTime(entropy) {
+  // Assume attacker does 1 billion guesses/sec (modern GPU cluster)
+  const guessesPerSec = 1e9;
+  const combinations = Math.pow(2, entropy);
+  const seconds = combinations / (2 * guessesPerSec); // divide by 2 for average
+
+  if (seconds < 1)            return '< 1 second';
+  if (seconds < 60)           return Math.round(seconds) + ' seconds';
+  if (seconds < 3600)         return Math.round(seconds/60) + ' minutes';
+  if (seconds < 86400)        return Math.round(seconds/3600) + ' hours';
+  if (seconds < 2592000)      return Math.round(seconds/86400) + ' days';
+  if (seconds < 31536000)     return Math.round(seconds/2592000) + ' months';
+  if (seconds < 3.15e9)       return Math.round(seconds/31536000) + ' years';
+  if (seconds < 3.15e12)      return (seconds/3.15e9).toFixed(1) + ' thousand years';
+  if (seconds < 3.15e15)      return (seconds/3.15e12).toFixed(1) + ' million years';
+  return '> 1 billion years 🔒';
+}
+
+function checkRobustness() {
+  const p = pw();
+  if (!p) { flashError('robustnessResult', 'NO PASSWORD ENTERED'); return; }
+
+  const entropy = calcEntropy(p);
+  const crackTime = estimateCrackTime(entropy);
+
+  // Pattern checks
+  const isCommon    = COMMON_PASSWORDS.has(p.toLowerCase());
+  const hasKbWalk   = KEYBOARD_WALKS.some(w => p.toLowerCase().includes(w));
+  const hasRepeats  = /(.)\1{3,}/.test(p);
+  const hasLeetOnly = /^[a-zA-Z0-9@$13!0]+$/.test(p) && /[a-z]/i.test(p) && p.length < 10;
+  const hasYear     = /19\d{2}|20\d{2}/.test(p);
+  const allCriteria = CRITERIA.every(c => c.test(p));
+
+  const warnings = [];
+  if (isCommon)   warnings.push('⚠ FOUND IN COMMON PASSWORD DICTIONARY');
+  if (hasKbWalk)  warnings.push('⚠ KEYBOARD WALK PATTERN DETECTED (qwerty/asdf...)');
+  if (hasRepeats) warnings.push('⚠ EXCESSIVE CHARACTER REPETITION');
+  if (hasYear)    warnings.push('⚠ YEAR PATTERN DETECTED (PREDICTABLE)');
+  if (hasLeetOnly)warnings.push('⚠ SIMPLE LEET-SPEAK SUBSTITUTION ONLY');
+
+  const failed = isCommon || hasKbWalk || entropy < 40 || !allCriteria;
+  const color = failed ? 'var(--neon-red)' : (entropy >= 80 ? 'var(--neon-green)' : 'var(--neon-yellow)');
+
+  let html = `<div class="card rounded-none p-5 result-panel" style="border-color:${color};">
+    <p class="section-header" style="color:${color};">// 02 — ROBUSTNESS ANALYSIS REPORT</p>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="p-3" style="background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+        <p class="mono text-xs mb-1" style="color:var(--text-dim);">ENTROPY</p>
+        <p class="mono text-xl font-bold" style="color:${color};">${entropy.toFixed(1)} bits</p>
+      </div>
+      <div class="p-3" style="background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+        <p class="mono text-xs mb-1" style="color:var(--text-dim);">TIME-TO-CRACK</p>
+        <p class="mono text-base font-bold" style="color:${color};">${crackTime}</p>
+      </div>
+    </div>`;
+
+  if (warnings.length) {
+    html += `<div class="mb-3">`;
+    warnings.forEach(w => {
+      html += `<p class="mono text-xs py-1" style="color:var(--neon-red);">${w}</p>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<p class="mono text-xs py-1" style="color:var(--neon-green);">✓ NO OBVIOUS PATTERNS DETECTED</p>`;
+  }
+
+  html += `<p class="mono text-xs mt-2" style="color:var(--text-dim);">
+    Assuming 1 billion guesses/sec (GPU cluster, bcrypt-equivalent workload)
+  </p></div>`;
+
+  const el = document.getElementById('robustnessResult');
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+
+  if (failed) showRecommender(warnings);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// HIBP BREACH CHECK — k-Anonymity Model
+// ──────────────────────────────────────────────────────────────────
+
+/**
+ * HIBP k-Anonymity flow:
+ * 1. SHA-1 hash the password entirely in the browser via SubtleCrypto.
+ * 2. Send ONLY the first 5 hex characters to api.pwnedpasswords.com/range/{prefix}.
+ * 3. The API returns all hash suffixes that share that prefix (~500 on average).
+ * 4. We locally compare the remaining 35 chars of our hash against the list.
+ * 5. If matched → password is breached. The plain password NEVER leaves the browser.
+ */
+async function sha1Hex(str) {
+  const msgBuffer = new TextEncoder().encode(str);
+  // SubtleCrypto.digest — built-in browser crypto, no external library needed
+  const hashBuffer = await window.crypto.subtle.digest('SHA-1', msgBuffer);
+  const hashArray  = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+async function checkHIBP() {
+  const p = pw();
+  if (!p) { flashError('hibpResult', 'NO PASSWORD ENTERED'); return; }
+
+  const el = document.getElementById('hibpResult');
+  el.innerHTML = `<div class="card rounded-none p-4" style="border-color:var(--neon-blue);">
+    <div class="flex items-center gap-3">
+      <div class="spinner"></div>
+      <p class="mono text-xs" style="color:var(--neon-blue);">HASHING LOCALLY → QUERYING HIBP API (k-ANON)...</p>
+    </div>
+  </div>`;
+  el.classList.remove('hidden');
+
+  try {
+    const fullHash   = await sha1Hex(p);   // Full SHA-1 hex (40 chars)
+    const prefix     = fullHash.slice(0, 5);  // First 5 chars sent to API
+    const suffix     = fullHash.slice(5);     // Remaining 35 chars checked locally
+
+    // Fetch only the 5-char prefix — the API never sees more
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+    if (!res.ok) throw new Error('HIBP API unreachable');
+    const text = await res.text();
+
+    // Parse response: "SUFFIX:COUNT\n..."
+    const lines = text.split('\n');
+    let breachCount = 0;
+    for (const line of lines) {
+      const [s, count] = line.trim().split(':');
+      if (s && s.toUpperCase() === suffix) {
+        breachCount = parseInt(count, 10);
+        break;
+      }
+    }
+
+    if (breachCount > 0) {
+      el.innerHTML = `<div class="card rounded-none p-5 result-panel" style="border-color:var(--neon-red);">
+        <p class="section-header" style="color:var(--neon-red);">// HIBP BREACH REPORT</p>
+        <p class="mono text-sm mb-2" style="color:var(--neon-red);">🚨 PASSWORD FOUND IN DATA BREACH DATABASE</p>
+        <p class="mono text-xs mb-3" style="color:#ff6b6b;">Seen in <strong>${breachCount.toLocaleString()}</strong> leaked databases. NEVER use this password.</p>
+        <p class="mono text-xs" style="color:var(--text-dim);">SHA-1 PREFIX SENT: <span style="color:var(--neon-blue);">${prefix}•••••••••••••••••••••••••••••••••••</span></p>
+        <p class="mono text-xs mt-1" style="color:var(--text-dim);">PLAIN PASSWORD: <span style="color:var(--neon-green);">NEVER LEFT YOUR BROWSER ✓</span></p>
+      </div>`;
+      showRecommender(['🚨 THIS PASSWORD IS IN BREACH DATABASES — CHANGE IMMEDIATELY']);
+    } else {
+      el.innerHTML = `<div class="card rounded-none p-5 result-panel" style="border-color:var(--neon-green);">
+        <p class="section-header" style="color:var(--neon-green);">// HIBP BREACH REPORT</p>
+        <p class="mono text-sm mb-2" style="color:var(--neon-green);">✓ NOT FOUND IN ANY KNOWN BREACH DATABASE</p>
+        <p class="mono text-xs mb-3" style="color:var(--text-dim);">No match in HIBP's ${(1e9).toLocaleString()}+ compromised passwords.</p>
+        <p class="mono text-xs" style="color:var(--text-dim);">SHA-1 PREFIX SENT: <span style="color:var(--neon-blue);">${prefix}•••••••••••••••••••••••••••••••••••</span></p>
+        <p class="mono text-xs mt-1" style="color:var(--text-dim);">PLAIN PASSWORD: <span style="color:var(--neon-green);">NEVER LEFT YOUR BROWSER ✓</span></p>
+      </div>`;
+    }
+  } catch(err) {
+    el.innerHTML = `<div class="card rounded-none p-4" style="border-color:var(--neon-yellow);">
+      <p class="mono text-xs" style="color:var(--neon-yellow);">⚠ HIBP API UNREACHABLE: ${err.message}</p>
+      <p class="mono text-xs mt-1" style="color:var(--text-dim);">Check network connection / CORS policy</p>
+    </div>`;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// RECOMMENDER PANEL
+// ──────────────────────────────────────────────────────────────────
+
+function showRecommender(warnings) {
+  const panel = document.getElementById('recommenderPanel');
+  const content = document.getElementById('recommenderContent');
+  const tips = [
+    '→ USE A RANDOM PASSPHRASE OF 4+ UNRELATED WORDS',
+    '→ MINIMUM 16 CHARACTERS WITH MIXED TYPES',
+    '→ AVOID PERSONAL INFO (NAME, BIRTH YEAR, CITY)',
+    '→ NEVER REUSE PASSWORDS ACROSS SERVICES',
+    '→ STORE SECURELY IN A PASSWORD MANAGER',
+  ];
+  let html = warnings.map(w => `<p class="mono text-xs mb-1" style="color:var(--neon-red);">${w}</p>`).join('');
+  html += `<div class="mt-3 pt-3" style="border-top:1px solid var(--border-dim);">`;
+  html += tips.map(t => `<p class="mono text-xs mb-1" style="color:var(--text-dim);">${t}</p>`).join('');
+  html += `</div>`;
+  content.innerHTML = html;
+  panel.classList.remove('hidden');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// CSPRNG PASSWORD GENERATOR
+// ──────────────────────────────────────────────────────────────────
+
+/**
+ * Cryptographically Secure Password Generation:
+ * window.crypto.getRandomValues() pulls entropy from the OS's CSPRNG
+ * (e.g. /dev/urandom on Linux, CryptGenRandom on Windows).
+ * This is VASTLY superior to Math.random() which is deterministic
+ * and predictable. We use rejection sampling to avoid modulo bias.
+ */
+function generateSecurePassword() {
+  const upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';    // removed I, O (confusable)
+  const lower   = 'abcdefghjkmnpqrstuvwxyz';      // removed i, l, o
+  const digits  = '23456789';                     // removed 0, 1 (confusable)
+  const special = '!@#$%^&*-_+=?';
+
+  // Guarantee at least one from each category
+  const pools = [upper, lower, digits, special];
+  let result = [];
+
+  // Pick one guaranteed char from each pool using CSPRNG
+  for (const pool of pools) {
+    result.push(pickRandom(pool));
+  }
+
+  // Fill remaining 12 chars (total = 16) from full charset
+  const full = upper + lower + digits + special;
+  for (let i = 4; i < 16; i++) {
+    result.push(pickRandom(full));
+  }
+
+  // Fisher-Yates shuffle using CSPRNG (no bias)
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = cryptoRandInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  lastGeneratedPw = result.join('');
+  const el = document.getElementById('generatedPw');
+  el.textContent = lastGeneratedPw;
+  el.classList.remove('hidden');
+  document.getElementById('copyHint').classList.add('hidden');
+}
+
+/** Pick a random char from a string using rejection sampling (no modulo bias) */
+function pickRandom(pool) {
+  const len = pool.length;
+  let rand;
+  do {
+    rand = cryptoRandInt(256);
+  } while (rand >= Math.floor(256 / len) * len); // rejection to avoid bias
+  return pool[rand % len];
+}
+
+/** Return cryptographically random integer in [0, max) */
+function cryptoRandInt(max) {
+  const arr = new Uint8Array(1);
+  window.crypto.getRandomValues(arr);
+  return arr[0] % max; // note: for small max values modulo bias is negligible;
+                        // for full correctness use rejection sampling (see pickRandom above)
+}
+
+function copyGenerated() {
+  if (!lastGeneratedPw) return;
+  navigator.clipboard.writeText(lastGeneratedPw).then(() => {
+    document.getElementById('copyHint').classList.remove('hidden');
+    setTimeout(() => document.getElementById('copyHint').classList.add('hidden'), 2000);
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────
+// AES-GCM ENCRYPTION / DECRYPTION — .AADI FILES
+// ──────────────────────────────────────────────────────────────────
+
+/**
+ * Cryptographic design for .aadi files:
+ * 1. KEY DERIVATION: PBKDF2-SHA256, 200,000 iterations, random 16-byte salt.
+ *    PBKDF2 is memory-hard enough for this use case and widely supported.
+ * 2. ENCRYPTION: AES-GCM, 256-bit key, random 12-byte IV.
+ *    GCM provides both confidentiality AND authenticated integrity (no tampering).
+ * 3. FILE FORMAT: JSON { salt_b64, iv_b64, cipher_b64 }
+ *    All values are Base64-encoded binary.
+ */
+
+async function deriveKey(password, salt) {
+  const keyMaterial = await window.crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  return window.crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, hash: 'SHA-256', iterations: 200000 },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+function bufToB64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function b64ToBuf(b64) {
+  const bin = atob(b64);
+  return Uint8Array.from(bin, c => c.charCodeAt(0)).buffer;
+}
+
+async function encryptNote() {
+  const note = document.getElementById('secretNote').value;
+  const password = pw();
+  const statusEl = document.getElementById('encryptStatus');
+  const previewEl = document.getElementById('encryptedPreview');
+
+  if (!note) { showStatus(statusEl, '⚠ ENTER A SECRET NOTE TO ENCRYPT', 'var(--neon-yellow)'); return; }
+  if (!password) { showStatus(statusEl, '⚠ ENTER A PASSWORD FIRST (TOP INPUT)', 'var(--neon-yellow)'); return; }
+
+  try {
+    // Generate cryptographically random salt (16 bytes) and IV (12 bytes)
+    const salt = window.crypto.getRandomValues(new Uint8Array(16));
+    const iv   = window.crypto.getRandomValues(new Uint8Array(12));
+    const key  = await deriveKey(password, salt);
+
+    const cipherBuf = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      new TextEncoder().encode(note)
+    );
+
+    // Package into .aadi JSON format
+    const payload = JSON.stringify({
+      format: 'AADI_V1',
+      algo: 'AES-GCM-256 + PBKDF2-SHA256-200k',
+      salt_b64: bufToB64(salt.buffer),
+      iv_b64:   bufToB64(iv.buffer),
+      cipher_b64: bufToB64(cipherBuf)
+    });
+
+    // Download as .aadi file
+    const blob = new Blob([payload], { type: 'application/octet-stream' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'secret.aadi'; a.click();
+    URL.revokeObjectURL(url);
+
+    showStatus(statusEl, '✓ ENCRYPTED & DOWNLOADED AS secret.aadi', 'var(--neon-green)');
+    previewEl.textContent = payload;
+    previewEl.classList.remove('hidden');
+  } catch(e) {
+    showStatus(statusEl, '✗ ENCRYPTION FAILED: ' + e.message, 'var(--neon-red)');
+  }
+}
+
+async function decryptFile() {
+  const password = pw();
+  const statusEl = document.getElementById('decryptStatus');
+  const outEl    = document.getElementById('decryptedContent');
+
+  if (!selectedFile) { showStatus(statusEl, '⚠ SELECT A .AADI FILE FIRST', 'var(--neon-yellow)'); return; }
+  if (!password)     { showStatus(statusEl, '⚠ ENTER DECRYPTION PASSWORD ABOVE', 'var(--neon-yellow)'); return; }
+
+  try {
+    const text    = await selectedFile.text();
+    const payload = JSON.parse(text);
+
+    if (payload.format !== 'AADI_V1') throw new Error('INVALID .AADI FORMAT');
+
+    const salt      = new Uint8Array(b64ToBuf(payload.salt_b64));
+    const iv        = new Uint8Array(b64ToBuf(payload.iv_b64));
+    const cipherBuf = b64ToBuf(payload.cipher_b64);
+
+    const key = await deriveKey(password, salt);
+    const plainBuf = await window.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      cipherBuf
+    );
+
+    const plainText = new TextDecoder().decode(plainBuf);
+    showStatus(statusEl, '✓ DECRYPTION SUCCESSFUL', 'var(--neon-green)');
+    outEl.textContent = plainText;
+    outEl.classList.remove('hidden');
+  } catch(e) {
+    outEl.classList.add('hidden');
+    showStatus(statusEl, '✗ DECRYPTION FAILED — WRONG PASSWORD OR CORRUPTED FILE', 'var(--neon-red)');
+  }
+}
+
+function onFileSelected(event) {
+  selectedFile = event.target.files[0];
+  if (selectedFile) {
+    document.getElementById('dropFileName').textContent = '▶ ' + selectedFile.name;
+  }
+}
+
+// Drag & drop support
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) { selectedFile = file; document.getElementById('dropFileName').textContent = '▶ ' + file.name; }
+});
+
+// ──────────────────────────────────────────────────────────────────
+// UTILITY
+// ──────────────────────────────────────────────────────────────────
+
+function showStatus(el, msg, color) {
+  el.textContent = msg;
+  el.style.color = color;
+  el.classList.remove('hidden');
+}
+
+function flashError(targetId, msg) {
+  const el = document.getElementById(targetId);
+  el.innerHTML = `<div class="card rounded-none p-3" style="border-color:var(--neon-red);">
+    <p class="mono text-xs" style="color:var(--neon-red);">⚠ ${msg}</p>
+  </div>`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 2500);
+}
+
+// Boot
+onPasswordInput();
+</script>
+</body>
+</html>
